@@ -108,7 +108,7 @@ Hi! I'm Homero Raúl Vargas Cruz, a **Full-Stack Software Engineer** with over *
 
 ## 📫 **Contact Me**
 - 📧 Email: [homero.vargascruz@gmail.com](mailto:homero.vargascruz@gmail.com)
-- 📱 Phone: [+52 729 447 0019](tel:+527294470019)
+- 📱 Phone: [+52 729 447 0019](tel:+527294470019) _Please send me Whats, since I don't answer calls I don't know_
 
 ## 🦾 **Personal Mission**
 > "To create software solutions that are both efficient and human-centered, while continually learning and pushing the boundaries of my technical expertise."
