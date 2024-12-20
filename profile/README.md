@@ -1,7 +1,5 @@
 # 📘 **Homero Raúl Vargas Cruz**
 
-![Banner](https://github.com/hrauvc/banner.jpg)
-
 ## 👋 **Hello World!**
 Hi! I'm Homero Raúl Vargas Cruz, a **Full-Stack Software Engineer** with over **6 years of experience** developing robust, scalable, and efficient web applications. My passion for coding, learning, and problem-solving drives me to create impactful software solutions.
 
