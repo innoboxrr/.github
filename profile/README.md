@@ -90,11 +90,11 @@ Hi! I'm Homero Raúl Vargas Cruz, a **Full-Stack Software Engineer** with over *
 ## 🛠️ **Skills Overview**
 | **Skill**               | **Experience**  |  **Skill**              | **Experience**  |
 |----------------------|-----------------|-----------------------|-----------------|
-| **PHP**               | 6+ years         | **Vue.js**             | 4+ years         |
-| **Laravel**           | 6+ years         | **Git**                | 5+ years         |
-| **JavaScript**        | 6+ years         | **AWS**                | 3+ years         |
-| **MySQL**             | 5+ years         | **CI/CD Pipelines**    | 4+ years         |
-| **REST/SOAP APIs**    | 5+ years         | **PostgreSQL**         | 5+ years         |
+| **PHP**               | 13+ years         | **Vue.js**             | 6+ years         |
+| **Laravel**           | 11+ years         | **Git**                | 5+ years         |
+| **JavaScript**        | 8+ years          | **AWS**                | 3+ years         |
+| **MySQL**             | 5+ years          | **CI/CD Pipelines**    | 2+ years         |
+| **REST/SOAP APIs**    | 5+ years          | **PostgreSQL**         | 2+ years         |
 
 ## 🏆 **Achievements**
 - 🏅 Built the **Technology Department** at **EBAT**, coordinating a team of 8 collaborators.
