@@ -6,12 +6,24 @@ name: Node release
 # ella. Al revés —autoincrementar un tag y esperar que package.json coincida—
 # es como se acaba publicando 2.0.0 con un package.json que dice 1.9.7.
 #
+# Se publica con **trusted publishing** (OIDC): npm confía en este repositorio
+# y en este workflow, y no hace falta ningún token. Antes se pasaba un
+# NODE_AUTH_TOKEN, y ahí estaba el problema: cuando npm ve un token se
+# autentica con él **en vez de** usar el intercambio OIDC, así que la
+# publicación acababa pidiendo un código de dos factores que en CI no hay
+# quien teclee. La provenance se firmaba bien y el publish fallaba justo
+# después.
+#
+# Requisitos, una vez por paquete:
+#   - En npmjs.com → paquete → Settings → Trusted Publisher: GitHub Actions,
+#     con este repositorio y `release.yml`, y el permiso `npm publish`.
+#   - `permissions: id-token: write` (ya está más abajo).
+#
 # Uso desde un paquete:
 #
 #     jobs:
 #         release:
 #             uses: innoboxrr/.github/.github/workflows/node-release.yml@main
-#             secrets: inherit
 
 on:
     workflow_call:
@@ -19,9 +31,6 @@ on:
             working-directory:
                 type: string
                 default: '.'
-        secrets:
-            NPM_TOKEN:
-                required: false
 
 jobs:
     release:
@@ -33,8 +42,8 @@ jobs:
 
         permissions:
             contents: write
-            # Para la procedencia de npm, que firma el paquete con la
-            # identidad del workflow.
+            # El identificador que npm intercambia por el permiso de publicar.
+            # Sin esto no hay trusted publishing.
             id-token: write
 
         defaults:
@@ -52,28 +61,20 @@ jobs:
                   node-version: '22'
                   registry-url: 'https://registry.npmjs.org'
 
+            # El npm que trae Node 22 es anterior al soporte de OIDC. Sin esta
+            # línea el publish intenta autenticarse a la antigua y pide OTP.
+            - name: Actualizar npm
+              run: npm install -g npm@latest
+
             - name: Leer la versión
               id: version
               run: echo "value=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
 
             - name: ¿Hay que publicar?
               id: check
-              env:
-                  NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
               run: |
                   if git rev-parse "v${{ steps.version.outputs.value }}" >/dev/null 2>&1; then
                       echo "::notice::El tag v${{ steps.version.outputs.value }} ya existe; no se publica."
-                      echo "skip=true" >> "$GITHUB_OUTPUT"
-                      exit 0
-                  fi
-
-                  # Sin el secreto no se puede publicar. Se avisa y se sale en
-                  # verde: un rojo aquí no significa que el código esté mal,
-                  # solo que falta configurar el token, y confundir las dos
-                  # cosas hace que se deje de mirar el CI.
-                  if [ -z "$NPM_TOKEN" ]; then
-                      echo "::warning::Falta el secreto NPM_TOKEN; no se publica v${{ steps.version.outputs.value }}."
-                      echo "::warning::Ponlo con: gh secret set NPM_TOKEN --org innoboxrr"
                       echo "skip=true" >> "$GITHUB_OUTPUT"
                   fi
 
@@ -85,11 +86,11 @@ jobs:
               if: steps.check.outputs.skip != 'true'
               run: npm test
 
+            # Sin NODE_AUTH_TOKEN a propósito: es lo que deja que npm use el
+            # intercambio OIDC en vez de un token.
             - name: Publicar en npm
               if: steps.check.outputs.skip != 'true'
               run: npm publish --provenance --access public
-              env:
-                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
             - name: Etiquetar
               if: steps.check.outputs.skip != 'true'
