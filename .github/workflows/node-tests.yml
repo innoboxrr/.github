@@ -1,0 +1,55 @@
+name: Node tests
+
+# Definición única de cómo se prueba un paquete npm del ecosistema.
+#
+# Hasta ahora este archivo estaba copiado en cada repositorio. Copiar no es
+# compartir: cuando había que corregir algo —la versión de una action, un
+# rango de Node— o se tocaban los quince, o quedaban quince variantes. Aquí
+# vive una sola vez y los repositorios la llaman.
+#
+# Uso desde un paquete:
+#
+#     jobs:
+#         tests:
+#             uses: innoboxrr/.github/.github/workflows/node-tests.yml@main
+
+on:
+    workflow_call:
+        inputs:
+            node-versions:
+                description: 'Versiones de Node a probar, como array JSON'
+                type: string
+                default: '["20", "22", "24"]'
+            working-directory:
+                description: 'Directorio del paquete, si no es la raíz'
+                type: string
+                default: '.'
+
+jobs:
+    tests:
+        runs-on: ubuntu-latest
+
+        strategy:
+            fail-fast: false
+            matrix:
+                node: ${{ fromJSON(inputs.node-versions) }}
+
+        name: Node ${{ matrix.node }}
+
+        defaults:
+            run:
+                working-directory: ${{ inputs.working-directory }}
+
+        steps:
+            - uses: actions/checkout@v5
+
+            - uses: actions/setup-node@v5
+              with:
+                  node-version: ${{ matrix.node }}
+
+            # Son librerías, no aplicaciones: no se versiona el lockfile, y así
+            # la suite corre contra las dependencias que de verdad va a
+            # resolver quien la instale.
+            - run: npm install --no-audit --no-fund
+
+            - run: npm test

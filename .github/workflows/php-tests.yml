@@ -1,0 +1,76 @@
+name: PHP tests
+
+# Definición única de cómo se prueba un paquete Composer del ecosistema.
+#
+# Además de la suite corre `larapack:audit`, que comprueba que el paquete
+# declare las versiones de la línea base. Ese paso es el que impide que la
+# alineación se deshaga: sin él, un composer.json puede volver a quedarse sin
+# restricción de PHP y nadie se entera hasta que algo revienta en producción.
+#
+# Uso desde un paquete:
+#
+#     jobs:
+#         tests:
+#             uses: innoboxrr/.github/.github/workflows/php-tests.yml@main
+
+on:
+    workflow_call:
+        inputs:
+            php-versions:
+                description: 'Versiones de PHP a probar, como array JSON'
+                type: string
+                default: '["8.3", "8.4"]'
+            audit:
+                description: 'Ejecutar larapack:audit contra el paquete'
+                type: boolean
+                default: true
+            extensions:
+                description: 'Extensiones de PHP adicionales, separadas por coma'
+                type: string
+                default: ''
+
+jobs:
+    tests:
+        runs-on: ubuntu-latest
+
+        strategy:
+            fail-fast: false
+            matrix:
+                php: ${{ fromJSON(inputs.php-versions) }}
+
+        name: PHP ${{ matrix.php }}
+
+        steps:
+            - uses: actions/checkout@v5
+
+            - name: Preparar PHP
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: ${{ matrix.php }}
+                  extensions: ${{ inputs.extensions }}
+                  coverage: none
+
+            # `update` y no `install`: son librerías y no versionan el
+            # lockfile, así que la suite corre contra lo que de verdad va a
+            # resolver quien las instale.
+            - name: Instalar dependencias
+              run: composer update --prefer-dist --no-interaction --no-progress
+
+            # `|| true` porque grep sale con 1 cuando no encuentra nada, y que
+            # el informe tumbe la matriz sería absurdo.
+            - name: Versiones resueltas
+              run: composer show php illuminate/support phpunit/phpunit || true
+
+            - name: Auditar contra la línea base del ecosistema
+              if: inputs.audit
+              run: |
+                  if [ -f vendor/innoboxrr/larapack-generator/builder ]; then
+                      php vendor/innoboxrr/larapack-generator/builder larapack:audit .
+                  elif [ -f builder ]; then
+                      php builder larapack:audit .
+                  else
+                      echo "::warning::larapack-generator no está instalado; no se audita."
+                  fi
+
+            - name: Tests
+              run: vendor/bin/phpunit

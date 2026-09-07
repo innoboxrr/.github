@@ -1,0 +1,81 @@
+name: PHP release
+
+# Etiquetado de un paquete Composer del ecosistema.
+#
+# Invierte el modelo que había: hasta ahora un `bump-patch.yml` copiado en 22
+# repositorios autoincrementaba un tag en cada push a master **sin correr un
+# solo test**, y además leía la versión con `git tag --sort=creatordate`, que
+# ordena por fecha y no por semver. Con eso, un mensaje de commit que
+# mencionara `#major` de pasada bastaba para publicar una versión mayor sin
+# quererlo.
+#
+# Aquí la versión la declara composer.json, los tests son la puerta, y el tag
+# se deriva. Packagist publica al recibir el tag.
+#
+# Uso desde un paquete:
+#
+#     jobs:
+#         release:
+#             uses: innoboxrr/.github/.github/workflows/php-release.yml@main
+
+on:
+    workflow_call:
+        inputs:
+            php-version:
+                type: string
+                default: '8.4'
+
+jobs:
+    release:
+        runs-on: ubuntu-latest
+
+        if: >
+            github.event_name == 'workflow_dispatch' ||
+            github.event.workflow_run.conclusion == 'success'
+
+        permissions:
+            contents: write
+
+        steps:
+            - uses: actions/checkout@v5
+              with:
+                  ref: ${{ github.event.workflow_run.head_sha || github.ref }}
+                  fetch-depth: 0
+
+            - name: Preparar PHP
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: ${{ inputs.php-version }}
+                  coverage: none
+
+            - name: Leer la versión
+              id: version
+              run: |
+                  if [ -f VERSION ]; then
+                      value=$(tr -d ' \n\r' < VERSION)
+                  else
+                      value=$(php -r 'echo json_decode(file_get_contents("composer.json"), true)["version"] ?? "";')
+                  fi
+
+                  if [ -z "$value" ]; then
+                      echo "::error::Ni VERSION ni composer.json declaran una versión. Sin fuente de verdad no se etiqueta."
+                      exit 1
+                  fi
+
+                  echo "value=$value" >> "$GITHUB_OUTPUT"
+
+            - name: ¿Hay que etiquetar?
+              id: check
+              run: |
+                  if git rev-parse "${{ steps.version.outputs.value }}" >/dev/null 2>&1; then
+                      echo "::notice::El tag ${{ steps.version.outputs.value }} ya existe; no se etiqueta."
+                      echo "skip=true" >> "$GITHUB_OUTPUT"
+                  fi
+
+            - name: Etiquetar
+              if: steps.check.outputs.skip != 'true'
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "github-actions[bot]@users.noreply.github.com"
+                  git tag "${{ steps.version.outputs.value }}"
+                  git push origin "${{ steps.version.outputs.value }}"
