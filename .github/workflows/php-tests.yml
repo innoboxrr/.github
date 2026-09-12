@@ -74,14 +74,24 @@ jobs:
 
             # `|| true` porque grep sale con 1 cuando no encuentra nada, y que
             # el informe tumbe la matriz sería absurdo.
+            # composer show admite un paquete por llamada; con varios fallaba y
+            # dejaba un error en el log que no era de nadie.
             - name: Versiones resueltas
-              run: composer show php illuminate/support phpunit/phpunit || true
+              run: |
+                  for package in illuminate/support phpunit/phpunit; do
+                      composer show "$package" 2>/dev/null | grep -E "^(name|versions)" || true
+                  done
 
             - name: Auditar contra la línea base del ecosistema
               if: inputs.audit
               run: |
-                  if [ -f vendor/innoboxrr/larapack-generator/builder ]; then
+                  # Se comprueba el comando y no sólo el binario: un paquete que
+                  # todavía pide larapack-generator ^5 instala un builder sin
+                  # audit, que además no carga su autoloader dentro de vendor/.
+                  if [ -f vendor/innoboxrr/larapack-generator/src/Commands/AuditCommand.php ]; then
                       php vendor/innoboxrr/larapack-generator/builder larapack:audit .
+                  elif [ -f vendor/innoboxrr/larapack-generator/builder ]; then
+                      echo "::warning::El paquete instala una versión de larapack-generator anterior a la 7, sin larapack:audit; no se audita."
                   elif [ -f builder ]; then
                       php builder larapack:audit .
                   else
