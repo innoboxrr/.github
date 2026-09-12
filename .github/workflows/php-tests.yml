@@ -28,6 +28,10 @@ on:
                 description: 'Extensiones de PHP adicionales, separadas por coma'
                 type: string
                 default: ''
+            tests-required:
+                description: 'Fallar si el paquete no tiene una suite ejecutable. En false, un paquete sin tests pasa con solo instalar y compilar.'
+                type: boolean
+                default: true
 
 jobs:
     tests:
@@ -56,6 +60,18 @@ jobs:
             - name: Instalar dependencias
               run: composer update --prefer-dist --no-interaction --no-progress
 
+            # Lo mínimo que tiene que cumplir cualquier paquete, tenga tests o
+            # no: que su código compile en cada PHP de la matriz. Es la puerta
+            # que les queda a los paquetes que todavía no tienen suite; sin
+            # ella, un push con un error de sintaxis se publicaba igual.
+            - name: Sintaxis
+              run: |
+                  if [ -d src ]; then
+                      find src -name '*.php' -print0 | while IFS= read -r -d '' file; do
+                          php -l "$file" > /dev/null || { php -l "$file"; exit 1; }
+                      done
+                  fi
+
             # `|| true` porque grep sale con 1 cuando no encuentra nada, y que
             # el informe tumbe la matriz sería absurdo.
             - name: Versiones resueltas
@@ -72,5 +88,21 @@ jobs:
                       echo "::warning::larapack-generator no está instalado; no se audita."
                   fi
 
+            # Sin suite, `tests-required` decide. Por omisión falla: un
+            # paquete que dice tener tests y no los tiene es un error. En false
+            # pasa avisando, para que un paquete sin tests pueda tener al menos
+            # la puerta de instalar y compilar.
             - name: Tests
-              run: vendor/bin/phpunit
+              run: |
+                  config=""
+                  [ -f phpunit.xml.dist ] && config=phpunit.xml.dist
+                  [ -f phpunit.xml ] && config=phpunit.xml
+
+                  if [ -f vendor/bin/phpunit ] && [ -n "$config" ] && find tests -name '*Test.php' 2>/dev/null | grep -q .; then
+                      vendor/bin/phpunit
+                  elif [ "${{ inputs.tests-required }}" = "true" ]; then
+                      echo "::error::No hay suite ejecutable: hace falta phpunit, su configuración y al menos un *Test.php."
+                      exit 1
+                  else
+                      echo "::warning::Sin suite: solo se comprobó que el paquete instala y compila."
+                  fi
