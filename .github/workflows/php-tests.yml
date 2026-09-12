@@ -32,6 +32,12 @@ on:
                 description: 'Fallar si el paquete no tiene una suite ejecutable. En false, un paquete sin tests pasa con solo instalar y compilar.'
                 type: boolean
                 default: true
+        secrets:
+            # JSON de autenticacion de Composer, p. ej. {"github-oauth":{"github.com":"<token>"}}.
+            # Solo lo necesita un paquete que depende de otro privado declarado
+            # como repositorio vcs; sin el secreto no cambia nada.
+            COMPOSER_AUTH:
+                required: false
 
 jobs:
     tests:
@@ -43,6 +49,9 @@ jobs:
                 php: ${{ fromJSON(inputs.php-versions) }}
 
         name: PHP ${{ matrix.php }}
+
+        env:
+            COMPOSER_AUTH: ${{ secrets.COMPOSER_AUTH }}
 
         steps:
             - uses: actions/checkout@v5
